@@ -2,8 +2,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from matplotlib import pyplot as plt
+import plotly.express as px
 
 import streamlit as st
 
@@ -19,9 +18,15 @@ def main():
     start, end = get_user_date(start_date, end_date)
     filtered_tips = filter_data(tips, start, end, "time_order")
 
-    graphs = get_graph(filtered_tips)
-
-    choise = st.sidebar.selectbox("Show graph", options=graphs.keys())
+    graphs = [
+        "Total Bill",
+        "Tips",
+        "Total Bill vs. Tips",
+        "Total Bill vs. Tips by Gender",
+        "Tips vs. Day of the Week by Gender",
+        "Total Bill by Day of the Week and Day Time",
+        "Tips by Day Time",
+    ]
 
     st.write(
         f"""
@@ -29,12 +34,14 @@ def main():
              """
     )
 
+    choice = st.sidebar.selectbox("Show graph", graphs)
+
     st.write(
         f"""
-             ## {choise}
+             ## {choice}
              """
     )
-    st.pyplot(graphs[choise])
+    display_graph(filtered_tips, choice)
 
 
 def generate_random_dates(start_date, end_date, k):
@@ -60,64 +67,58 @@ def filter_data(data, start_date, end_date, column_name):
     return data[(data[column_name] >= start_date) & (data[column_name] <= end_date)]
 
 
-def get_graph(data):
-    total_bill = plt.figure()
-    sns.histplot(data=data, x="total_bill", bins=range(0, 51, 2))
+def display_graph(data, choice):
+    if choice == "Total Bill":
+        fig = px.histogram(
+            data_frame=data,
+            x="total_bill",
+            nbins=20,
+            barmode="overlay",
+            labels={"total_bill": "Total Bill"},
+        )
+        fig.update_layout(yaxis_title="Count")
+        fig.update_traces(marker_line_width=1, marker_line_color="black")
+        st.plotly_chart(fig)
 
-    tips_graph = plt.figure()
-    sns.lineplot(data=data, x="time_order", y="tip").set(xlabel="Date", ylabel="Tip")
-    tips_graph.tight_layout()
-    tips_graph.autofmt_xdate(rotation=30)
+    elif choice == "Tips":
+        st.line_chart(data=data, x="time_order", y="tip")
 
-    total_bill_vs_tips = plt.figure()
-    sns.scatterplot(data=data, x="total_bill", y="tip", color="#A242DF").set(
-        ylabel="Tip", xlabel="Total Bill"
-    )
+    elif choice == "Total Bill vs. Tips":
+        st.scatter_chart(data=data, x="total_bill", y="tip")
 
-    total_bill_vs_tips_gender = plt.figure()
-    sns.scatterplot(data=data, x="total_bill", y="tip", hue="sex").set(
-        ylabel="Tip", xlabel="Total Bill"
-    )
+    elif choice == "Total Bill vs. Tips by Gender":
+        fig = px.scatter(data_frame=data, x="total_bill", y="tip", color="sex")
+        st.plotly_chart(fig)
 
-    tips_by_day, axes = plt.subplots(2, 1, figsize=(12, 6))
-    sns.histplot(data=data[data["time"] == "Lunch"], x="tip", ax=axes[0]).set(
-        title="Lunch"
-    )
-    sns.histplot(data=data[data["time"] == "Dinner"], x="tip", ax=axes[1]).set(
-        title="Dinner"
-    )
-    tips_by_day.tight_layout()
+    elif choice == "Tips vs. Day of the Week by Gender":
+        fig = px.histogram(
+            data_frame=data[data["time"] == "Lunch"],
+            x="tip",
+            nbins=7,
+            labels={"tip": "Tip"},
+            title="Lunch",
+        )
+        fig.update_traces(marker_line_width=1, marker_line_color="black")
+        fig.update_layout(yaxis_title="Count")
+        st.plotly_chart(fig)
+        fig = px.histogram(
+            data_frame=data[data["time"] == "Dinner"],
+            labels={"tip": "Tip"},
+            x="tip",
+            nbins=7,
+            title="Dinner",
+        )
+        fig.update_layout(yaxis_title="Count")
+        fig.update_traces(marker_line_width=1, marker_line_color="black")
+        st.plotly_chart(fig)
 
-    tips_vs_day_gender = plt.figure()
-    sns.scatterplot(data=data, x="tip", y="day", hue="sex").set(
-        ylabel="Day", xlabel="Tip"
-    )
+    elif choice == "Total Bill by Day of the Week and Day Time":
+        fig = px.scatter(data_frame=data, x="tip", y="day", color="sex")
+        st.plotly_chart(fig)
 
-    bill_vs_day_and_time = plt.figure()
-    sns.boxplot(data=data, x="day", y="total_bill", hue="time").set(
-        ylabel="Total Bill", xlabel="Time"
-    )
-
-    graph_title = [
-        "Total Bill",
-        "Tips",
-        "Total Bill vs. Tips",
-        "Total Bill vs. Tips by Gender",
-        "Tips vs. Day of the Week by Gender",
-        "Total Bill by Day of the Week and Day Time",
-        "Tips by Day Time",
-    ]
-    graph = [
-        total_bill,
-        tips_graph,
-        total_bill_vs_tips,
-        total_bill_vs_tips_gender,
-        tips_vs_day_gender,
-        bill_vs_day_and_time,
-        tips_by_day,
-    ]
-
-    return dict(zip(graph_title, graph))
+    elif choice == "Tips by Day Time":
+        fig = px.box(data_frame=data, x="day", y="total_bill", color="time")
+        st.plotly_chart(fig)
 
 
 if __name__ == "__main__":
